@@ -16,12 +16,43 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  Future<List<Album>> futureAlbums;
   Future<Album> futureAlbum;
+
+  void _albumDetails(BuildContext context, int id) {
+    futureAlbum = fetchAlbum(id);
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Album Details'),
+            ),
+            body: Center(
+              child: FutureBuilder<Album>(
+                future: futureAlbum,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Text(snapshot.data.title);
+                  } else if (snapshot.hasError) {
+                    return Text('${snapshot.error}');
+                  }
+
+                  return const CircularProgressIndicator();
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    futureAlbum = fetchAlbum();
+    futureAlbums = fetchAlbums();
   }
 
   @override
@@ -36,16 +67,41 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Fetch Data Example'),
         ),
         body: Center(
-          child: FutureBuilder<Album>(
-            future: futureAlbum,
+          child: FutureBuilder<List<Album>>(
+            future: futureAlbums,
             builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return Text(snapshot.data.title);
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const CircularProgressIndicator();
               } else if (snapshot.hasError) {
-                return Text('${snapshot.error}');
+                return Text('Error: ${snapshot.error}');
               }
 
-              return const CircularProgressIndicator();
+              final items = snapshot.data;
+              return Scrollbar(
+                child: RefreshIndicator(
+                  child: ListView.separated(
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      return Container(
+                          color: Colors.white,
+                          child: ListTile(
+                            title: Text(snapshot.data[index].title),
+                            onTap: () {
+                              _albumDetails(context, snapshot.data[index].id);
+                            },
+                          ));
+                    },
+                    separatorBuilder: (BuildContext context, int index) {
+                      return const Divider(
+                        color: Colors.blue,
+                      );
+                    },
+                  ),
+                  onRefresh: () {
+                    return;
+                  },
+                ),
+              );
             },
           ),
         ),
@@ -54,9 +110,23 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-Future<Album> fetchAlbum() async {
+Future<List<Album>> fetchAlbums() async {
   final response =
-      await http.get('https://jsonplaceholder.typicode.com/albums/1');
+      await http.get('https://jsonplaceholder.typicode.com/albums');
+
+  if (response.statusCode == 200) {
+    final jsonArray = jsonDecode(response.body) as List<dynamic>;
+    return jsonArray.map((dynamic i) {
+      return Album.fromJson(i as Map<dynamic, dynamic>);
+    }).toList();
+  } else {
+    throw Exception('Faild to load album.');
+  }
+}
+
+Future<Album> fetchAlbum(int id) async {
+  final response =
+      await http.get('https://jsonplaceholder.typicode.com/albums/$id');
 
   if (response.statusCode == 200) {
     return Album.fromJson(jsonDecode(response.body) as Map);
