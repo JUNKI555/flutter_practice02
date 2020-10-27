@@ -34,7 +34,9 @@ class _MyAppState extends State<MyApp> {
                 future: futureAlbum,
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
-                    return Text(snapshot.data.title);
+                    return Text('''
+                          title\n${snapshot.data.title}\n
+                          user_id\n${snapshot.data.userId}''');
                   } else if (snapshot.hasError) {
                     return Text('${snapshot.error}');
                   }
@@ -82,14 +84,15 @@ class _MyAppState extends State<MyApp> {
                   child: ListView.separated(
                     itemCount: items.length,
                     itemBuilder: (context, index) {
-                      return Container(
-                          color: Colors.white,
-                          child: ListTile(
-                            title: Text(snapshot.data[index].title),
-                            onTap: () {
-                              _albumDetails(context, snapshot.data[index].id);
-                            },
-                          ));
+                      final listTile = ListTile(
+                        leading:
+                            const Icon(Icons.photo_filter, color: Colors.blue),
+                        title: Text(snapshot.data[index].title),
+                        onTap: () {
+                          _albumDetails(context, snapshot.data[index].id);
+                        },
+                      );
+                      return Container(color: Colors.white, child: listTile);
                     },
                     separatorBuilder: (BuildContext context, int index) {
                       return const Divider(
@@ -97,9 +100,7 @@ class _MyAppState extends State<MyApp> {
                       );
                     },
                   ),
-                  onRefresh: () {
-                    return;
-                  },
+                  onRefresh: fetchAlbums,
                 ),
               );
             },
